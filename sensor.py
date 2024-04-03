@@ -1,7 +1,7 @@
-
 import csv
 import statistics
-from datetime import datetime, timedelta, timezoneimport logging
+from datetime import datetime, timedelta, timezone
+import logging
 
 from .const import DOMAIN, CONF_FOLDER_PATHS
 from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
@@ -28,6 +28,7 @@ from homeassistant_historical_sensor import (
 
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
