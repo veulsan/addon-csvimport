@@ -1,0 +1,24 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "host": "[%key:common::config_flow::data::host%]",
+          "username": "[%key:common::config_flow::data::username%]",
+          "password": "[%key:common::config_flow::data::password%]"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+      "unknown": "[%key:common::config_flow::error::unknown%]"
+      "no_files_found": "No csv files found in folder {error_folder}",
+    },
+    "abort": {
+      "already_configured": "Device already configured",
+      "no_files_found": "No csv files found in folder {error_folder}",
+      "folder_does_not_exist": "Folder does not extist {error_folder}",
+    }
+  }
+}
