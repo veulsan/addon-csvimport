@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import glob
 import logging
+from typing import Any
 import os
 import csv
 
 
 import voluptuous as vol
 
+from homeassistant import config_entries, exceptions
 from homeassistant.config_entries import ConfigFlow
 from homeassistant.const import CONF_FILENAME
 from homeassistant.core import HomeAssistant
@@ -19,9 +21,8 @@ from .const import DOMAIN, CONF_FOLDER_PATHS
 
 _LOGGER = logging.getLogger(__name__)
 
-# TODO adjust the data schema to the data that you need
+# Data schemas
 STEP_USER_DATA_SCHEMA = vol.Schema({vol.Required(CONF_FOLDER_PATHS): str})
-
 STEP_CHOOSEFILE_SCHEMA = vol.Schema({vol.Required(CONF_FILENAME): str})
 
 
@@ -52,7 +53,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     return True
 
 
-class CsvImportConfigFlow(ConfigFlow, domain=DOMAIN):
+class CsvImportConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for energycsvimport."""
 
     # The schema version of the entries that it creates
@@ -60,9 +61,8 @@ class CsvImportConfigFlow(ConfigFlow, domain=DOMAIN):
     # The schema version of the entries that it creates
     # Home Assistant will call your migrate method if the version changes
     VERSION = 1
-    MINOR_VERSION = 1
-
-    folder_path = None
+    # MINOR_VERSION = 1
+    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -93,15 +93,16 @@ class CsvImportConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def get_meterid(self, filename):
         """Return the first entry of file"""
-
-        with open(filename, "r", encoding="utf-8-sig", newline="") as csvfile:
-            reader = csv.DictReader(csvfile, delimiter=";")
-            # Skip the header row
-            row = next(reader)
-            if row:
-                anlid = row["Anlid"]
-                return anlid
-
+        try:
+            with open(filename, "r", encoding="utf-8-sig", newline="") as csvfile:
+                reader = csv.DictReader(csvfile, delimiter=";")
+                # Skip the header row
+                row = next(reader)
+                if row:
+                    anlid = row["Anlid"]
+                    return anlid
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.exception("Unexpected exception")
         return {}  # Return an empty dictionary if no row is found
 
     async def async_step_user(
@@ -117,16 +118,16 @@ class CsvImportConfigFlow(ConfigFlow, domain=DOMAIN):
                 if info:
                     self.folder_path = user_input[CONF_FOLDER_PATHS]
             except FileExistsError:
-                errors["base"] = "folder_does_not_exist"
+                errors[
+                    "base"
+                ] = f"Folder '{user_input[CONF_FOLDER_PATHS]}' does not exist"
             except FileNotFoundError:
-                errors["base"] = "no_files_found"
-            except CannotConnect:
-                errors["base"] = "cannot_connect"
-            except InvalidAuth:
-                errors["base"] = "invalid_auth"
+                errors[
+                    "base"
+                ] = f"No CSV files found in '{user_input[CONF_FOLDER_PATHS]}'"
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
+                errors["base"] = "Unknown error occured. See log"
             else:
                 # Return the form of the next step.
                 return await self.async_step_choosefile()
@@ -136,12 +137,13 @@ class CsvImportConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_choosefile(self, user_input: Dict[str, Any] = None):
+        errors: dict[str, str] = {}
         if user_input is None:
             # If user_input is None, show the form to choose a file
             file_list = self.get_files_list(self.folder_path, "*.csv", "name", False)
             _LOGGER.debug("Files found in '%s': %s", self.folder_path, file_list)
             if not file_list:
-                return self.async_abort(reason="no_files_foound")
+                return self.async_abort(reason="no_files_found")
 
             return self.async_show_form(
                 step_id="choosefile",
@@ -152,28 +154,36 @@ class CsvImportConfigFlow(ConfigFlow, domain=DOMAIN):
                         )
                     }
                 ),
+                errors=errors,
             )
         else:
             # User has selected a file, finish the flow
             filepath = user_input["filename"]
             meter_id = self.get_meterid(filepath)
 
-            # Use correct key to access selected filename
-            _LOGGER.info("Create entry for %s", meter_id)
-            # Now you can create an entry using the selected file path
-            # For example:
-            return self.async_create_entry(
-                title=meter_id,
-                data={
-                    CONF_FILENAME: filepath,
-                    # Add other data as needed
-                },
-            )
+            if not meter_id:
+                _LOGGER.error(f"No meter id found in csv file '{filepath}'")
+                errors["base"] = f"No meter id found in csv file '{filepath}'"
+                return self.async_show_form(
+                    step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+                )
+            else:
+                # Use correct key to access selected filename
+                _LOGGER.info("Create entry for %s", meter_id)
+                # Now you can create an entry using the selected file path
+                # For example:
+                return self.async_create_entry(
+                    title=meter_id,
+                    data={
+                        CONF_FILENAME: filepath,
+                        # Add other data as needed
+                    },
+                )
 
 
-class CannotConnect(HomeAssistantError):
+class CannotConnect(exceptions.HomeAssistantError):
     """Error to indicate we cannot connect."""
 
 
-class InvalidAuth(HomeAssistantError):
+class InvalidAuth(exceptions.HomeAssistantError):
     """Error to indicate there is invalid auth."""

@@ -3,7 +3,7 @@ import logging
 from homeassistant.const import Platform
 
 DOMAIN = "energycsv"
-PLATFORMS = [Platform.SENSOR]
+PLATFORMS: list[str] = [Platform.SENSOR]
 LOGGER = logging.getLogger(__package__)
 
-CONF_FOLDER_PATHS = "folder"
+CONF_FOLDER_PATHS = "select_folder"

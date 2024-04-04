@@ -6,16 +6,16 @@
         "error": {
             "cannot_connect": "Failed to connect",
             "invalid_auth": "Invalid authentication",
-            "unknown": "Unexpected error"
+            "invalid_file": "Unable to read CSV file"
+            "unknown": "Unexpected error see logs for more details"
         },
         "step": {
             "user": {
                 "data": {
-                    "host": "Host",
-                    "password": "Password",
-                    "username": "Username"
+                    "select_folder": "Enter a folder name with CSV fiels",
+                    "host": "Enter a hostname"
                 }
             }
         }
-    }
+   }
 }
