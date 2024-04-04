@@ -1,6 +1,6 @@
 {
   "domain": "energycsv",
-  "name": "energycsv",
+  "name": "Energy CSV Import",
   "codeowners": [
     "@veulsan"
   ],
