@@ -1,5 +1,6 @@
 import csv
 import statistics
+import os
 from datetime import datetime, timedelta, timezone
 import logging
 
@@ -55,8 +56,7 @@ async def async_setup_entry(
     entities = []
     entities.append(
         CsvHistorySensor(
-            config_entry.title,
-            config_entry.data[CONF_FILENAME],
+            config_entry.title, config_entry.data[CONF_FILENAME], config_entry
         )
     )
 
@@ -80,11 +80,13 @@ class CsvHistorySensor(PollUpdateMixin, HistoricalSensor, SensorEntity):
         self,
         meterid: str,
         filename: str,
+        config_entry: ConfigEntry,
     ):
         """Initialize the CsvHistorySensor."""
         self._unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._filename = filename
         self._meterid = meterid
+        self._config_entry = config_entry
 
         # A unique_id for this entity with in this domain. This means for example if you
         # have a sensor on this cover, you must ensure the value returned is unique,
@@ -148,27 +150,33 @@ class CsvHistorySensor(PollUpdateMixin, HistoricalSensor, SensorEntity):
         #
         # Important: You must provide datetime with tzinfo
         hist_states = []
+        # Check if file exist
+        if os.path.exists(self._filename):
+            with open(self._filename, "r", encoding="utf-8-sig", newline="") as csvfile:
+                reader = csv.DictReader(csvfile, delimiter=";")
+                for row in reader:
+                    # Access data from each row
+                    anlid = row["Anlid"]
+                    datum_str = row["Datum"]
+                    value = float(row["Förbrukn"].replace(",", "."))
+                    enhet = row["Enhet"]
 
-        with open(self._filename, "r", encoding="utf-8-sig", newline="") as csvfile:
-            reader = csv.DictReader(csvfile, delimiter=";")
-            for row in reader:
-                # Access data from each row
-                anlid = row["Anlid"]
-                datum_str = row["Datum"]
-                value = float(row["Förbrukn"].replace(",", "."))
-                enhet = row["Enhet"]
-
-                # Convert datum_str to datetime with timezone information
-                # Here, you may need to replace 'Europe/Stockholm' with your actual timezone
-                datum = dtutil.as_local(
-                    datetime.strptime(datum_str, "%Y-%m-%d %H:%M:%S")
-                )
-                # _LOGGER.debug(
-                #    "Time: %s Value: %s", datum, row["Förbrukn"].replace(",", ".")
-                # )
-                # Create a HistoricalState object and append it to hist_states
-                hist_states.append(HistoricalState(state=value, dt=datum))
-
+                    # Convert datum_str to datetime with timezone information
+                    # Here, you may need to replace 'Europe/Stockholm' with your actual timezone
+                    datum = dtutil.as_local(
+                        datetime.strptime(datum_str, "%Y-%m-%d %H:%M:%S")
+                    )
+                    # _LOGGER.debug(
+                    #    "Time: %s Value: %s", datum, row["Förbrukn"].replace(",", ".")
+                    # )
+                    # Create a HistoricalState object and append it to hist_states
+                    hist_states.append(HistoricalState(state=value, dt=datum))
+            # Remove file once completed
+            os.remove(self._filename)
+        else:
+            _LOGGER.info(
+                f"File {self._filename} does not exist. Most likely already consumed"
+            )
         self._attr_historical_states = hist_states
 
     async def async_calculate_statistic_data(
