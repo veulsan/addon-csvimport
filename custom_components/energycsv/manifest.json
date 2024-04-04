@@ -9,7 +9,7 @@
   "documentation": "https://www.home-assistant.io/integrations/energycsv",
   "homekit": {},
   "iot_class": "local_polling",
-  "requirements": [],
+  "requirements": ["homeassistant-historical-sensor==2.0.0rc4"],
   "ssdp": [],
   "zeroconf": [],
   "version": "0.1.0"
