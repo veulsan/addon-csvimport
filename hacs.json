@@ -1,5 +1,5 @@
 {
-    "name": "Energy CSV Import"",
+    "name": "Energy CSV Import",
     "domains": ["sensors"],
     "render_readme": true
  }
